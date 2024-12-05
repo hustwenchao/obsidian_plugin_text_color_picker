@@ -4,7 +4,7 @@ Forked From : https://github.com/obsidianmd/obsidian-sample-plugin
 
 Setting :
 
-![alt text](Images/image.png)
+![alt text](Images/settings.png)
 
 Usage :
-![alt text](Images/image-1.png)
+![alt text](Images/usages.png)
