@@ -1,19 +1,21 @@
-import { App, Editor, MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { addIcon, App, Editor, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
 interface TextColorSettings {
-	colors: string[];
-	colorEmojis: { [key: string]: string };
+	colors: Array<{
+		name: string;
+		value: string;
+		emoji?: string;
+	}>;
 }
 
 const DEFAULT_TEXT_COLOR_SETTINGS: TextColorSettings = {
-	colors: ['red', 'blue', 'green', 'purple', 'orange'],
-	colorEmojis: {
-		'red': '🔴',
-		'blue': '🔵',
-		'green': '🟢',
-		'purple': '🟣',
-		'orange': '🟠'
-	}
+	colors: [
+		{ name: 'Red', value: '#FF0000', emoji: '🔴' },
+		{ name: 'Blue', value: '#0000FF', emoji: '🔵' },
+		{ name: 'Green', value: '#00FF00', emoji: '🟢' },
+		{ name: 'Purple', value: '#800080', emoji: '🟣' },
+		{ name: 'Orange', value: '#FFA500', emoji: '🟠' }
+	]
 }
 
 export default class MyPlugin extends Plugin {
@@ -24,13 +26,17 @@ export default class MyPlugin extends Plugin {
 
 		// 为每个颜色添加命令
 		this.textColorSettings.colors.forEach(color => {
-			const colorEmoji = this.textColorSettings.colorEmojis[color] || '⬤';
+			const displayName = `${color.name}`;  
+
+			// 注册Icon
+			addIcon(`text-color-${color.name.toLowerCase()}`, `<circle cx="50" cy="50" r="50" fill="${color.value}" />`);
 
 			this.addCommand({
-				id: `set-text-${color}`,
-				name: `Set Text To ${color} ${colorEmoji}`,
+				id: `set-text-${color.name.toLowerCase()}`,
+				name: `Text Color: ${displayName}`, 
+				icon: `text-color-${color.name.toLowerCase()}`,
 				editorCallback: (editor: Editor) => {
-					this.setTextColor(editor, color);
+					this.setTextColor(editor, color.value);
 				}
 			});
 		});
@@ -82,66 +88,89 @@ class TextColorSettingTab extends PluginSettingTab {
 		const colorListContainer = containerEl.createDiv('color-list-container');
 		
 		// 添加新颜色的设置
+		let nameInputEl: HTMLInputElement;
+		let colorValue = '#000000';
+		let emojiInputEl: HTMLInputElement;
+
 		new Setting(containerEl)
 			.setName('Add New Color')
 			.setDesc('Add a new color to the list')
-			.addText(text => text
-				.setPlaceholder('Color name (e.g., red)')
-				.setValue('')
-				.onChange(() => {}))
-			.addText(text => text
-				.setPlaceholder('Emoji (e.g., 🔴)')
-				.setValue('')
-				.onChange(() => {}))
+			.addText(text => {
+				nameInputEl = text
+					.setPlaceholder('Color name (e.g., Dark Red)')
+					.inputEl;
+				return text;
+			})
+			.addColorPicker(color => {
+				color.setValue(colorValue)
+					.onChange(value => {
+						colorValue = value;
+					});
+				return color;
+			})
+			.addText(text => {
+				emojiInputEl = text
+					.setPlaceholder('Emoji (optional)')
+					.inputEl;
+				return text;
+			})
 			.addButton(button => button
 				.setButtonText('Add')
 				.onClick(async () => {
-					const colorInput = containerEl.querySelector('.add-color-input') as HTMLInputElement;
-					const emojiInput = containerEl.querySelector('.add-color-emoji-input') as HTMLInputElement;
-					const color = colorInput?.value.trim();
-					const emoji = emojiInput?.value.trim();
+					const name = nameInputEl.value.trim();
+					const emoji = emojiInputEl.value.trim();
 
-					if (color && emoji) {
-						this.plugin.textColorSettings.colors.push(color);
-						this.plugin.textColorSettings.colorEmojis[color] = emoji;
+					if (name && colorValue) {
+						this.plugin.textColorSettings.colors.push({
+							name,
+							value: colorValue,
+							...(emoji ? { emoji } : {})
+						});
 						await this.plugin.saveTextColorSettings();
 						this.plugin.reloadPlugin();
-						this.display(); // 刷新设置界面
-						colorInput.value = '';
-						emojiInput.value = '';
+						this.display();
+						
+						nameInputEl.value = '';
+						colorValue = '#000000';
+						emojiInputEl.value = '';
 					}
 				}));
 
 		// 显示现有颜色列表
-		this.plugin.textColorSettings.colors.forEach(color => {
-			const emoji = this.plugin.textColorSettings.colorEmojis[color] || '⬤';
-			new Setting(colorListContainer)
-				.setName(color)
-				.setDesc(`Current emoji: ${emoji}`)
-				.addText(text => text
-					.setPlaceholder('New emoji')
-					.setValue('')
-					.onChange(async (value) => {
-						if (value.trim()) {
-							this.plugin.textColorSettings.colorEmojis[color] = value.trim();
-							await this.plugin.saveTextColorSettings();
-							this.plugin.reloadPlugin();
-							this.display(); // 刷新设置界面
-						}
-					}))
-				.addButton(button => button
-					.setButtonText('Delete')
-					.setClass('color-delete-button')
-					.onClick(async () => {
-						const index = this.plugin.textColorSettings.colors.indexOf(color);
-						if (index > -1) {
-							this.plugin.textColorSettings.colors.splice(index, 1);
-							delete this.plugin.textColorSettings.colorEmojis[color];
-							await this.plugin.saveTextColorSettings();
-							this.plugin.reloadPlugin();
-							this.display(); // 刷新设置界面
-						}
-					}));
+		this.plugin.textColorSettings.colors.forEach((color, index) => {
+			const setting = new Setting(colorListContainer)
+				.setName(color.name)
+				.setDesc(`Color: ${color.value}${color.emoji ? ` Emoji: ${color.emoji}` : ''}`);
+
+			// 添加颜色选择器
+			setting.addColorPicker(picker => picker
+				.setValue(color.value)
+				.onChange(async (value) => {
+					this.plugin.textColorSettings.colors[index].value = value;
+					await this.plugin.saveTextColorSettings();
+					this.plugin.reloadPlugin();
+				}));
+
+			// 添加 Emoji 输入框（可选）
+			setting.addText(text => text
+				.setPlaceholder('Emoji (optional)')
+				.setValue(color.emoji || '')
+				.onChange(async (value) => {
+					this.plugin.textColorSettings.colors[index].emoji = value.trim() || undefined;
+					await this.plugin.saveTextColorSettings();
+					this.plugin.reloadPlugin();
+				}));
+
+			// 添加删除按钮
+			setting.addButton(button => button
+				.setButtonText('Delete')
+				.setClass('color-delete-button')
+				.onClick(async () => {
+					this.plugin.textColorSettings.colors.splice(index, 1);
+					await this.plugin.saveTextColorSettings();
+					this.plugin.reloadPlugin();
+					this.display();
+				}));
 		});
 	}
 }
