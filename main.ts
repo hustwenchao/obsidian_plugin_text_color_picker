@@ -127,7 +127,6 @@ class TextColorSettingTab extends PluginSettingTab {
 							...(emoji ? { emoji } : {})
 						});
 						await this.plugin.saveTextColorSettings();
-						this.plugin.reloadPlugin();
 						this.display();
 						
 						nameInputEl.value = '';
@@ -148,7 +147,6 @@ class TextColorSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.textColorSettings.colors[index].value = value;
 					await this.plugin.saveTextColorSettings();
-					this.plugin.reloadPlugin();
 				}));
 
 			// 添加 Emoji 输入框（可选）
@@ -158,7 +156,6 @@ class TextColorSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.textColorSettings.colors[index].emoji = value.trim() || undefined;
 					await this.plugin.saveTextColorSettings();
-					this.plugin.reloadPlugin();
 				}));
 
 			// 添加删除按钮
@@ -168,7 +165,6 @@ class TextColorSettingTab extends PluginSettingTab {
 				.onClick(async () => {
 					this.plugin.textColorSettings.colors.splice(index, 1);
 					await this.plugin.saveTextColorSettings();
-					this.plugin.reloadPlugin();
 					this.display();
 				}));
 		});
